@@ -116,6 +116,7 @@ _.run(function () {
 
     rpc.submitResults = function (arg, req) {
         _.p(db.collection('records').insert({
+            user : req.user,
             results : arg
         }))
     }
