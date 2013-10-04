@@ -127,7 +127,10 @@ $(function () {
             rpc('submitResults', results, function () {
                 if (hit) {
                     mturkSubmit()
-                }                
+                } else {
+                    alert('thanks!')
+                    $('body').empty()
+                }
             })
         } catch (e) {
             alert('please select the best name')
