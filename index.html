@@ -124,10 +124,11 @@ $(function () {
                 bestName : names[$('input[name=names]:checked', d).val().match(/\d+/)[0]],
                 comments : $('#comments').val()
             }
-            rpc('submitResults', results)
-            if (hit) {
-                mturkSubmit()
-            }
+            rpc('submitResults', results, function () {
+                if (hit) {
+                    mturkSubmit()
+                }                
+            })
         } catch (e) {
             alert('please select the best name')
         }
