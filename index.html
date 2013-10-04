@@ -1,0 +1,141 @@
+<html>
+<head>
+<title>Hello</title>
+<style>
+</style>
+</head>
+<body>
+<script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
+<script src="/gl519/jquery.cookie.js"></script>
+<script src="/gl519/index.js"></script>
+<script>
+
+function onError(msg) {
+    alert((msg || 'Oops. Not sure what happened.') + '\n\n' +
+        'Please try refreshing the page.')
+}
+
+g_rpc_version = $.cookie('rpc_version')
+g_rpc_token = $.cookie('rpc_token')
+g_rpc_timer = null
+g_rpc = []
+
+function rpc(func, arg, cb) {
+    if (typeof(arg) == 'function') return rpc(func, null, arg)
+    g_rpc.push({
+        payload : { func : func, arg : arg },
+        cb : cb
+    })
+    if (g_rpc_timer) clearTimeout(g_rpc_timer)
+    g_rpc_timer = setTimeout(function () {
+        g_rpc_timer = null
+        var save_rpc = g_rpc
+        g_rpc = []
+        $.ajax({
+            url : '/rpc/' + g_rpc_version + '/' + g_rpc_token,
+            type : 'post',
+            data : _.json(_.map(save_rpc, function (e) { return e.payload })),
+            success : function (r) {
+                _.each(r, function (r, i) {
+                    if (save_rpc[i].cb)
+                        save_rpc[i].cb(r)
+                })
+            },
+            error : function (s) {
+                onError(s.responseText)
+            }
+        })
+    }, 0)
+}
+
+function createThrobber() {
+    var d = $("<div />");
+    for (var i = 0; i < 10; i++) {
+        $("<span />").text(".")
+                     .appendTo(d)
+                     .css({ color: i === 0 ? "#000" : "#ccc" });
+    }
+    var timer = setInterval(function () {
+        if ($.contains(document.documentElement, d[0])) {
+            d.find("span:last").prependTo(d);
+        } else {
+            clearInterval(timer);
+        }
+    }, 300);
+    return d;
+}
+
+///
+
+function mturkSubmit() {
+    var params = _.getUrlParams()
+    var f = $('<form action="' + params.turkSubmitTo + '/mturk/externalSubmit" method="GET"><input type="hidden" name="assignmentId" value="' + params.assignmentId + '"></input><input type="hidden" name="unused" value="unused"></input></form>')
+    $('body').append(f)
+    f.submit()
+}
+
+function mturkCheckPreview() {
+    var params = _.getUrlParams()
+    if (params.assignmentId == "ASSIGNMENT_ID_NOT_AVAILABLE") {
+        _.dialog($('<div style="background-color: rgba(0,0,0,0.5);color:white;font-size:xx-large;padding:10px"/>').text('preview'), false)
+        $('body').click(function () {
+            alert('This is a preview. Please accept the HIT to work on it.')
+        })
+        return true
+    }
+}
+
+function isHIT() {
+    var params = _.getUrlParams()
+    return !!params.assignmentId
+}
+
+///
+
+function drawRadio(group, value, text) {
+    var d = $('<div/>')
+    d.append($('<input type="radio" name="' + group + '" id="' + value + '" value="' + value + '">'))
+    d.append($('<label style="margin-left:10px" for="' + value + '"></label>').text(text))
+    return d
+}
+
+$(function () {
+    var hit = isHIT()
+    var preview = mturkCheckPreview()
+
+    var d = $('<div/>')
+
+    d.append($('<div/>').text('Which name do you like best?'))
+
+    var names = ['(char)myMeat', 'Cook My Meat', 'Quantified Steak']
+    names = _.shuffle(names)
+    _.each(names, function (name, i) {
+        d.append(drawRadio('names', 'name' + i, name).css('margin-top', '20px'))
+    })
+
+    var dd = $('<div/>')
+    dd.append($('<div style="margin-top:20px"/>').text('comments on name?: '))
+    dd.append($('<input id="comments" type="text" style="width:300px"/>'))
+    d.append(dd)
+
+    d.append($('<button style="margin-top:20px">').text('submit').click(function () {
+        try {
+            var results = {
+                bestName : names[$('input[name=names]:checked', d).val().match(/\d+/)[0]],
+                comments : $('#comments').val()
+            }
+            rpc('submitResults', results)
+            if (hit) {
+                mturkSubmit()
+            }
+        } catch (e) {
+            alert('please select the best name')
+        }
+    }))
+
+    $('body').append(d)
+})
+
+</script>
+</body>
+</html>
